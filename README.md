@@ -6,23 +6,6 @@ PeerHive is a full-stack web application that combines **Natural Language Proces
 
 ---
 
-## 📑 Table of Contents
-
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Project Architecture](#-project-architecture)
-- [Directory Structure](#-directory-structure)
-- [Core Terminology & Concepts](#-core-terminology--concepts)
-- [How the System Works — Logic & Data Flow](#-how-the-system-works--logic--data-flow)
-- [Setup & Installation](#-setup--installation)
-- [Running the Application](#-running-the-application)
-- [SDG Alignment](#-sdg-alignment)
-- [Abstract](#-abstract)
-- [Author](#-author)
-- [License](#-license)
-
----
-
 ## 🚀 Features
 
 | Feature | Description |
@@ -432,12 +415,9 @@ PeerHive aligns with the following **United Nations Sustainable Development Goal
 
 **Gnyanprakhash M**
 
-Built with Generative AI 🚀
-
-If you found this project helpful, feel free to ⭐ star the repository.
-
-📧 Email: gnyanprakhash2005@gmail.com  
-💼 LinkedIn: [linkedin.com/in/gnyanprakhash-m-46104b361](https://linkedin.com/in/gnyanprakhash-m-46104b361)
+- If you found this project helpful, feel free to ⭐ star the repository.
+- 📧 Email: gnyanprakhash2005@gmail.com  
+- 💼 LinkedIn: [linkedin.com/in/gnyanprakhash-m-46104b361](https://linkedin.com/in/gnyanprakhash-m-46104b361)
 
 ---
 
