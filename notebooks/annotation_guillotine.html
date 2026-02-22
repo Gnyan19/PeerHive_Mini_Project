@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Guillotine v3 | Annotation Station</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .card {
+            background-color: #1f2937; /* gray-800 */
+            border: 1px solid #374151; /* gray-700 */
+        }
+        .progress-bar-inner {
+            transition: width 0.3s ease-in-out;
+        }
+        .key-hint {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border: 1px solid #4b5563; /* gray-600 */
+            border-radius: 0.375rem; /* rounded-md */
+            font-weight: 600;
+            background-color: #374151; /* gray-700 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex flex-col items-center justify-center min-h-screen p-4 md:p-8">
+
+    <div id="app-container" class="w-full max-w-4xl">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-red-500">The Guillotine 🔪</h1>
+            <p class="text-gray-400">v3.0 with Deterministic Shuffle</p>
+        </header>
+
+        <!-- File Upload Section -->
+        <div id="upload-screen" class="card p-8 rounded-lg text-center">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Load Your Dataset</h2>
+            <p class="text-gray-400 mb-6">Drag and drop your `reddit_burnout_anonymized_for_annotation.csv` file here, or click to select.</p>
+            <input type="file" id="csv-file" accept=".csv" class="hidden">
+            <button id="upload-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                Select CSV File
+            </button>
+            <p id="upload-error" class="text-yellow-400 mt-4 hidden"></p>
+        </div>
+
+        <!-- Annotation Section -->
+        <div id="annotation-screen" class="hidden">
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-medium text-gray-400">Progress</span>
+                    <span id="progress-text" class="text-sm font-bold text-white">0 / 0</span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-red-600 h-2.5 rounded-full progress-bar-inner" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Main Content Card -->
+            <div class="card p-6 rounded-lg mb-4 h-[60vh] overflow-y-auto">
+                <div class="flex justify-between items-start mb-4">
+                    <span id="subreddit" class="bg-gray-700 text-red-400 text-xs font-bold mr-2 px-2.5 py-0.5 rounded-full"></span>
+                    <a id="post-url" href="#" target="_blank" class="text-blue-400 hover:underline text-sm">View Original Post</a>
+                </div>
+                <h2 id="post-title" class="text-xl md:text-2xl font-bold text-white mb-4"></h2>
+                <p id="post-body" class="text-gray-300 whitespace-pre-wrap leading-relaxed"></p>
+            </div>
+
+            <!-- Instructions & Controls -->
+            <div class="card p-4 rounded-lg flex items-center justify-between">
+                <div class="flex items-center justify-center space-x-6">
+                    <div class="text-center">
+                        <div class="key-hint">0</div>
+                        <p class="text-xs mt-1 text-gray-400">Noise</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="key-hint">1</div>
+                        <p class="text-xs mt-1 text-gray-400">Stressed</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="key-hint">2</div>
+                        <p class="text-xs mt-1 text-gray-400">Burned Out</p>
+                    </div>
+                </div>
+                <button id="reset-button" class="bg-gray-600 hover:bg-yellow-600 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">Reset Progress</button>
+            </div>
+        </div>
+
+        <!-- Completion Screen -->
+        <div id="completion-screen" class="hidden card p-8 rounded-lg text-center">
+             <h2 class="text-3xl font-bold text-green-500 mb-4">🏆 ANNOTATION COMPLETE 🏆</h2>
+             <p class="text-gray-300 mb-6">The deed is done. The data has been judged. Download your gold standard dataset.</p>
+             <button id="download-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                Download gold_standard_dataset_v1.csv
+             </button>
+        </div>
+    </div>
+
+<script>
+    // --- CONSTANTS ---
+    const LS_KEY_PREFIX = 'guillotine_progress_';
+    const TARGET_SIZE = 600;
+    
+    // --- DOM Elements ---
+    const uploadScreen = document.getElementById('upload-screen');
+    const annotationScreen = document.getElementById('annotation-screen');
+    const completionScreen = document.getElementById('completion-screen');
+    const uploadButton = document.getElementById('upload-button');
+    const fileInput = document.getElementById('csv-file');
+    const uploadError = document.getElementById('upload-error');
+    const resetButton = document.getElementById('reset-button');
+    const downloadButton = document.getElementById('download-button');
+    
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const subredditEl = document.getElementById('subreddit');
+    const postUrlEl = document.getElementById('post-url');
+    const postTitleEl = document.getElementById('post-title');
+    const postBodyEl = document.getElementById('post-body');
+
+    // --- State ---
+    let data = [];
+    let annotations = [];
+    let currentIndex = 0;
+    let storageKey = '';
+
+    // --- Event Listeners ---
+    uploadButton.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleFileUpload);
+    resetButton.addEventListener('click', resetProgress);
+    downloadButton.addEventListener('click', downloadCSV);
+
+    uploadScreen.addEventListener('dragover', (e) => { e.preventDefault(); uploadScreen.classList.add('border-dashed', 'border-2', 'border-red-500'); });
+    uploadScreen.addEventListener('dragleave', (e) => { e.preventDefault(); uploadScreen.classList.remove('border-dashed', 'border-2', 'border-red-500'); });
+    uploadScreen.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadScreen.classList.remove('border-dashed', 'border-2', 'border-red-500');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileUpload();
+        }
+    });
+
+    function handleFileUpload() {
+        const file = fileInput.files[0];
+        if (!file) return;
+        storageKey = LS_KEY_PREFIX + file.name;
+
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: (results) => {
+                const requiredColumns = ['id', 'clean_title', 'clean_body', 'subreddit', 'url'];
+                if (!requiredColumns.every(col => results.meta.fields.includes(col))) {
+                    uploadError.textContent = 'Error: CSV is missing required columns.';
+                    uploadError.classList.remove('hidden');
+                    return;
+                }
+                
+                uploadError.classList.add('hidden');
+                let rawData = results.data;
+                
+                // Load saved progress FIRST to see if we have a shuffle order
+                const savedProgress = loadProgress();
+
+                if (savedProgress && savedProgress.shuffledIds) {
+                    // Restore the saved order
+                    const idMap = new Map(rawData.map(post => [post.id, post]));
+                    data = savedProgress.shuffledIds.map(id => idMap.get(id)).filter(Boolean); // filter(Boolean) removes undefined if a post was removed
+                    console.log("Restored deterministic shuffle order.");
+                } else {
+                    // Create a new deterministic shuffle
+                    if (rawData.length > TARGET_SIZE) {
+                         data = rawData.sort(() => 0.5 - Math.random()).slice(0, TARGET_SIZE);
+                    } else {
+                        data = rawData;
+                    }
+                    console.log("Created new deterministic shuffle.");
+                }
+
+                // Set initial state from saved progress or start fresh
+                currentIndex = savedProgress ? savedProgress.currentIndex : 0;
+                annotations = savedProgress ? savedProgress.annotations : new Array(data.length).fill(-1);
+
+                startAnnotation();
+            },
+            error: (err) => {
+                uploadError.textContent = `Error parsing CSV: ${err.message}`;
+                uploadError.classList.remove('hidden');
+            }
+        });
+    }
+
+    function startAnnotation() {
+        uploadScreen.classList.add('hidden');
+        annotationScreen.classList.remove('hidden');
+        renderCurrentPost();
+        document.addEventListener('keydown', handleKeyPress);
+    }
+
+    function renderCurrentPost() {
+        if (currentIndex >= data.length) {
+            showCompletionScreen();
+            return;
+        }
+        const post = data[currentIndex];
+        subredditEl.textContent = `r/${post.subreddit}`;
+        postUrlEl.href = post.url;
+        postTitleEl.textContent = post.clean_title;
+        postBodyEl.textContent = post.clean_body;
+        updateProgressUI();
+    }
+    
+    function updateProgressUI() {
+        const progressPercent = ((currentIndex) / data.length) * 100;
+        progressBar.style.width = `${progressPercent}%`;
+        progressText.textContent = `${currentIndex} / ${data.length}`;
+    }
+
+    function handleKeyPress(e) {
+        if (currentIndex >= data.length) return;
+        const key = e.key;
+        if (['0', '1', '2'].includes(key)) {
+            annotations[currentIndex] = parseInt(key);
+            currentIndex++;
+            saveProgress();
+            renderCurrentPost();
+        }
+    }
+
+    function showCompletionScreen() {
+        annotationScreen.classList.add('hidden');
+        completionScreen.classList.remove('hidden');
+        document.removeEventListener('keydown', handleKeyPress);
+    }
+
+    function saveProgress() {
+        const progress = {
+            currentIndex: currentIndex,
+            annotations: annotations,
+            shuffledIds: data.map(post => post.id) // Save the order!
+        };
+        localStorage.setItem(storageKey, JSON.stringify(progress));
+    }
+
+    function loadProgress() {
+        const savedProgress = localStorage.getItem(storageKey);
+        if (savedProgress) {
+            try {
+                return JSON.parse(savedProgress);
+            } catch (e) {
+                console.error("Could not parse saved progress.", e);
+                return null;
+            }
+        }
+        return null;
+    }
+    
+    function resetProgress() {
+        if (confirm("Are you sure you want to reset all annotation progress for this file? This cannot be undone.")) {
+            localStorage.removeItem(storageKey);
+            location.reload();
+        }
+    }
+    
+    function downloadCSV() {
+        const finalData = data.map((row, index) => ({
+            ...row,
+            burnout_label: annotations[index]
+        }));
+        
+        const labeledData = finalData.filter(row => row.burnout_label !== -1);
+        const csv = Papa.unparse(labeledData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'gold_standard_dataset_v1.csv';
+        link.click();
+        
+        // Clean up after download as a courtesy
+        localStorage.removeItem(storageKey);
+    }
+</script>
+</body>
+</html>
